@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NK Fazaa Admin</title>
+<link rel="icon" href="icon.png">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <img src="icon.png" alt="" class="logo">
+  <div class="brand">nk<span>fazaa</span> <small>Admin</small></div>
+  <nav id="tabs" hidden>
+    <button data-tab="dash" class="on">Dashboard</button>
+    <button data-tab="map">Live map</button>
+    <button data-tab="workers">Workers</button>
+    <button data-tab="jobs">Jobs</button>
+    <button data-tab="prices">Prices</button>
+    <button data-tab="money">Money</button>
+    <button data-tab="settings">Settings</button>
+  </nav>
+  <button id="logout" class="ghost" hidden>Log out</button>
+</header>
+
+<main>
+  <section id="login" class="card narrow">
+    <h2>Admin login</h2>
+    <label>Mobile number <input id="phone" placeholder="+9665XXXXXXXX" inputmode="tel"></label>
+    <button id="sendCode">Send code</button>
+    <div id="codeBox" hidden>
+      <label>Code <input id="code" inputmode="numeric" maxlength="6"></label>
+      <button id="verify">Verify</button>
+    </div>
+    <div id="recaptcha"></div>
+    <p id="loginMsg" class="muted"></p>
+  </section>
+
+  <section id="notAdmin" class="card narrow" hidden>
+    <h2>Not an admin yet</h2>
+    <p>This account is not marked as admin. In the Firebase console → Firestore, create a document
+      <code>admins/<b id="myUid"></b></code> (any field, e.g. <code>name: "Owner"</code>), then reload.</p>
+  </section>
+
+  <section id="dash" class="tab" hidden>
+    <div class="stats" id="stats"></div>
+  </section>
+
+  <section id="map" class="tab" hidden>
+    <p class="muted">Green = online workers · Purple = open requests. Updates live.</p>
+    <div id="leaflet"></div>
+  </section>
+
+  <section id="workers" class="tab" hidden>
+    <div class="toolbar">
+      <select id="wFilter">
+        <option value="pending">Pending approval</option>
+        <option value="approved">Approved</option>
+        <option value="blocked">Blocked</option>
+        <option value="">All</option>
+      </select>
+      <input id="wSearch" placeholder="Search name or phone">
+    </div>
+    <div id="workerList" class="list"></div>
+  </section>
+
+  <section id="jobs" class="tab" hidden>
+    <div class="toolbar">
+      <select id="jFilter">
+        <option value="active">Active</option>
+        <option value="requested">Waiting for worker</option>
+        <option value="completed">Completed</option>
+        <option value="visit_only">Visit only</option>
+        <option value="cancelled">Cancelled</option>
+        <option value="">All</option>
+      </select>
+    </div>
+    <div class="tablewrap"><table id="jobTable"></table></div>
+  </section>
+
+  <section id="prices" class="tab" hidden>
+    <div class="toolbar">
+      <button id="addService">+ Add service</button>
+      <button id="seedServices" class="ghost">Load starter Jeddah price list</button>
+    </div>
+    <div class="tablewrap"><table id="serviceTable"></table></div>
+  </section>
+
+  <section id="money" class="tab" hidden>
+    <h3>Workers who owe the company</h3>
+    <div class="tablewrap"><table id="dueTable"></table></div>
+    <h3>Recent payments</h3>
+    <div class="tablewrap"><table id="payTable"></table></div>
+  </section>
+
+  <section id="settings" class="tab card narrow" hidden>
+    <h2>Commission & rules</h2>
+    <label>App share of visit fee (%) <input id="sVisit" type="number" step="1" min="0" max="100"></label>
+    <label>App share of job price (%) <input id="sJob" type="number" step="0.5" min="0" max="100"></label>
+    <label>Due limit (SAR) – worker gets no new jobs above this <input id="sDue" type="number" min="0"></label>
+    <label>Worker sees requests within (km) <input id="sRadius" type="number" min="1"></label>
+    <button id="saveSettings">Save</button>
+    <p id="settingsMsg" class="muted"></p>
+  </section>
+</main>
+
+<dialog id="dlg"><form method="dialog" id="dlgBody"></form></dialog>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="config.js"></script>
+<script type="module" src="app.js"></script>
+</body>
+</html>
