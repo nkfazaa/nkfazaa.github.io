@@ -1,4 +1,5 @@
 :root {
+[hidden] { display: none !important; }
   --teal: #0A8A80; --teal-d: #076B63; --purple: #6A1B78; --gold: #C98A1E;
   --ink: #14232A; --muted: #5A6B70; --line: #E3E7E8; --bg: #F6F7F7; --danger: #B3261E;
 }
