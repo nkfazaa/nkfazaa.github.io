@@ -95,6 +95,7 @@ function listen() {
   unsubs.push(onSnapshot(collection(db, "wallets"), (s) => { wallets = s.docs.map((d) => ({ id: d.id, ...d.data() })); renderPeople(); }));
   unsubs.push(onSnapshot(collection(db, "walletRequests"), (s) => { wreqs = s.docs.map((d) => ({ id: d.id, ...d.data() })); renderPeople(); }));
 }
+setInterval(() => { if (jobs.length) renderStats(); }, 60000);
 function renderAll() { renderStats(); renderWorkers(); renderJobs(); renderMoney(); renderPeople(); drawMap(); }
 function renderPeople() { renderCustomers(); renderWallets(); renderRequests(); renderPills(); }
 function renderPills() {
@@ -127,6 +128,13 @@ function renderStats() {
     ["account_balance", "Owed by workers", sar(workers.reduce((a, w) => a + (w.due || 0), 0)), "g"],
     ["star", "Average rating", (() => { const r = done.filter((j) => j.rating); return r.length ? (r.reduce((a, j) => a + j.rating, 0) / r.length).toFixed(1) : "–"; })(), "g"],
   ];
+  const late = jobs.filter((j) => j.status === "requested" && j.createdAt?.toDate && Date.now() - j.createdAt.toDate() > 10 * 60 * 1000);
+  $("nLate").textContent = late.length ? String(late.length) : "";
+  document.title = late.length ? `(${late.length}) waiting · NK Fazaa Admin` : "NK Fazaa Admin";
+  $("alerts").innerHTML = late.length
+    ? `<div class="alert"><i class="ms">notification_important</i><div>${late.length} request${late.length > 1 ? "s have" : " has"} waited more than 10 minutes with no worker. Call the customer or assign a worker.</div>
+       <button class="small danger" id="goLate">Open jobs</button></div>` : "";
+  $("goLate")?.addEventListener("click", () => { $("jFilter").value = "requested"; renderJobs(); showTab("jobs"); });
   $("stats").innerHTML = items.map(([ic, t, v, c]) =>
     `<div class="stat ${c}"><i class="ms">${ic}</i><div><span>${t}</span><b>${v}</b></div></div>`).join("");
 

@@ -121,3 +121,8 @@ code { background: #F0F4F4; padding: 2px 6px; border-radius: 6px; }
   .grid2 { grid-template-columns: 1fr; }
   #who { display: none; }
 }
+.pill.red { background: #FF8A80; color: #5a0000; }
+.alert { display: flex; gap: 12px; align-items: center; background: #FDECEA; border: 1px solid #F5C2BD; color: #7a1a12;
+  border-radius: 16px; padding: 12px 16px; margin-bottom: 12px; font-weight: 600; }
+.alert .ms { color: var(--danger); }
+.alert button { margin-left: auto; }
