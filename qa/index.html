@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NK Fazaa Admin</title>
+<link rel="icon" href="../icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,500,0,0" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<div class="shell" id="shell">
+  <aside class="side" id="side" hidden>
+    <div class="side-brand">
+      <img src="../icon.png" alt="" class="logo">
+      <div><div class="brand">nk<span>fazaa</span></div><small>Admin dashboard</small></div>
+    </div>
+    <nav id="tabs">
+      <button data-tab="dash" class="on"><span class="ic ms">space_dashboard</span>Dashboard</button>
+      <button data-tab="map"><span class="ic ms">map</span>Live map</button>
+      <button data-tab="jobs"><span class="ic ms">receipt_long</span>Jobs</button>
+      <button data-tab="workers"><span class="ic ms">engineering</span>Workers <em class="pill" id="nPending"></em></button>
+      <button data-tab="customers"><span class="ic ms">group</span>Customers</button>
+      <button data-tab="wallets"><span class="ic ms">account_balance_wallet</span>Wallets <em class="pill" id="nWithdraw"></em></button>
+      <button data-tab="money"><span class="ic ms">payments</span>Worker dues</button>
+      <button data-tab="prices"><span class="ic ms">sell</span>Prices</button>
+      <button data-tab="requests"><span class="ic ms">inbox</span>Requests <em class="pill" id="nDelete"></em></button>
+      <button data-tab="settings"><span class="ic ms">settings</span>Settings</button>
+    </nav>
+    <button id="logout" class="ghost side-logout">Log out</button>
+  </aside>
+
+  <div class="content">
+    <header class="top" id="top">
+      <button id="menuBtn" class="menu" hidden aria-label="Menu">☰</button>
+      <div class="top-title"><h1 id="pageTitle">Admin</h1><span class="muted" id="pageSub"></span></div>
+      <span class="muted" id="who"></span>
+    </header>
+
+    <main>
+      <section id="login" class="card narrow login">
+        <img src="../icon.png" alt="" class="login-logo">
+        <h2>NK Fazaa Admin</h2>
+        <p class="muted">Log in with the admin mobile number.</p>
+        <label>Mobile number <input id="phone" placeholder="+9665XXXXXXXX" inputmode="tel"></label>
+        <button id="sendCode">Send code</button>
+        <div id="codeBox" hidden>
+          <label>Code <input id="code" inputmode="numeric" maxlength="6"></label>
+          <button id="verify">Verify</button>
+        </div>
+        <div id="recaptcha"></div>
+        <p id="loginMsg" class="muted"></p>
+      </section>
+
+      <section id="notAdmin" class="card narrow" hidden>
+        <h2>Not an admin yet</h2>
+        <p>This account is not marked as admin. In the Firebase console → Firestore, create a document
+          <code>admins/<b id="myUid"></b></code> (any field, e.g. <code>name: "Owner"</code>), then reload.</p>
+      </section>
+
+      <section id="dash" class="tab" hidden>
+        <div class="stats" id="stats"></div>
+        <div class="grid2">
+          <div class="card"><h3>Jobs finished · last 14 days</h3><div class="chartbox"><canvas id="chJobs"></canvas></div></div>
+          <div class="card"><h3>Company income (SAR) · last 14 days</h3><div class="chartbox"><canvas id="chMoney"></canvas></div></div>
+        </div>
+        <div class="grid2">
+          <div class="card"><h3>Jobs by category</h3><div class="chartbox"><canvas id="chCats"></canvas></div></div>
+          <div class="card"><h3>Top workers</h3><div class="tablewrap flat"><table id="topWorkers"></table></div></div>
+        </div>
+        <div class="card"><h3>Latest jobs</h3><div class="tablewrap flat"><table id="latestJobs"></table></div></div>
+      </section>
+
+      <section id="map" class="tab" hidden>
+        <p class="muted"><span class="dot teal"></span> online workers · <span class="dot purple"></span> open requests · updates live</p>
+        <div id="leaflet"></div>
+      </section>
+
+      <section id="workers" class="tab" hidden>
+        <div class="toolbar">
+          <select id="wFilter">
+            <option value="pending">Pending approval</option>
+            <option value="approved">Approved</option>
+            <option value="blocked">Blocked</option>
+            <option value="">All</option>
+          </select>
+          <select id="wType">
+            <option value="">Individuals &amp; companies</option>
+            <option value="individual">Individuals</option>
+            <option value="company">Companies</option>
+          </select>
+          <input id="wSearch" placeholder="Search name or phone">
+        </div>
+        <div id="workerList" class="list"></div>
+      </section>
+
+      <section id="customers" class="tab" hidden>
+        <div class="toolbar"><input id="cSearch" placeholder="Search name or phone"></div>
+        <div class="tablewrap"><table id="customerTable"></table></div>
+      </section>
+
+      <section id="wallets" class="tab" hidden>
+        <h3>Withdraw requests</h3>
+        <div class="toolbar">
+          <select id="rFilter">
+            <option value="pending">Waiting</option>
+            <option value="paid">Paid</option>
+            <option value="rejected">Rejected</option>
+            <option value="">All</option>
+          </select>
+        </div>
+        <div class="tablewrap"><table id="withdrawTable"></table></div>
+        <h3>Add or remove wallet balance</h3>
+        <div class="card toolbar">
+          <select id="balUser"></select>
+          <input id="balAmount" type="number" step="1" placeholder="Amount (use - to remove)">
+          <button id="balSave">Save</button>
+        </div>
+        <div class="tablewrap"><table id="balanceTable"></table></div>
+      </section>
+
+      <section id="jobs" class="tab" hidden>
+        <div class="toolbar">
+          <select id="jFilter">
+            <option value="active">Active</option>
+            <option value="requested">Waiting for worker</option>
+            <option value="completed">Completed</option>
+            <option value="visit_only">Visit only</option>
+            <option value="cancelled">Cancelled</option>
+            <option value="">All</option>
+          </select>
+          <input id="jSearch" placeholder="Search customer, worker or service">
+        </div>
+        <div class="tablewrap"><table id="jobTable"></table></div>
+      </section>
+
+      <section id="prices" class="tab" hidden>
+        <div class="toolbar">
+          <button id="addService">+ Add service</button>
+          <button id="seedServices" class="ghost">Load starter Jeddah price list</button>
+        </div>
+        <div class="tablewrap"><table id="serviceTable"></table></div>
+      </section>
+
+      <section id="money" class="tab" hidden>
+        <h3>Workers who owe the company</h3>
+        <div class="tablewrap"><table id="dueTable"></table></div>
+        <h3>Recent payments</h3>
+        <div class="tablewrap"><table id="payTable"></table></div>
+      </section>
+
+      <section id="requests" class="tab" hidden>
+        <h3>Account delete requests</h3>
+        <p class="muted">Removing the data deletes the profile from the database. Also delete the phone number under Firebase → Authentication → Users.</p>
+        <div class="tablewrap"><table id="deleteTable"></table></div>
+      </section>
+
+      <section id="settings" class="tab card narrow" hidden>
+        <h2>Commission &amp; rules</h2>
+        <label>App share of visit fee (%) <input id="sVisit" type="number" step="1" min="0" max="100"></label>
+        <label>App share of job price (%) <input id="sJob" type="number" step="0.5" min="0" max="100"></label>
+        <label>Due limit (SAR) – worker gets no new jobs above this <input id="sDue" type="number" min="0"></label>
+        <label>Worker sees requests within (km) <input id="sRadius" type="number" min="1"></label>
+        <h2>Support</h2>
+        <label>WhatsApp support number (shown in both apps) <input id="sSupport" placeholder="+9665XXXXXXXX" inputmode="tel"></label>
+        <button id="saveSettings">Save</button>
+        <p id="settingsMsg" class="muted"></p>
+      </section>
+    </main>
+  </div>
+</div>
+
+<dialog id="dlg"><form method="dialog" id="dlgBody"></form></dialog>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
