@@ -17,7 +17,7 @@ const sar = (v) => `${Number(v || 0).toLocaleString("en", { maximumFractionDigit
 const fmtDate = (ts) => (ts && ts.toDate ? ts.toDate().toLocaleString("en-GB", { dateStyle: "short", timeStyle: "short" }) : "");
 const img = (b64) => (b64 ? `data:image/jpeg;base64,${b64}` : "");
 
-const CATS = { ac: "AC", plumbing: "Plumbing", electric: "Electrical", cleaning: "Cleaning", furniture: "Furniture", painting: "Painting", other: "Other" };
+const CATS = { ac: "AC", plumbing: "Plumbing", electric: "Electrical", cleaning: "Cleaning", furniture: "Furniture", painting: "Painting", car: "Car mechanic", appliances: "Home appliances", electronics: "TV & electronics", other: "Other" };
 const STATUS = {
   requested: ["Waiting", "b-wait"], accepted: ["Accepted", "b-p"], on_the_way: ["On the way", "b-p"],
   arrived: ["Arrived", "b-p"], working: ["Working", "b-p"], completed: ["Completed", "b-ok"],
@@ -119,15 +119,16 @@ function renderWorkers() {
       <div class="head">
         <img class="av" src="${img(w.photo)}" alt="">
         <div>
-          <b>${esc(w.name)}</b> ${w.online ? '<span class="badge b-ok">online</span>' : ""}<br>
+          <b>${esc(w.name)}</b> ${w.accountType === "company" ? '<span class="badge b-wait">Company</span>' : ""} ${w.online ? '<span class="badge b-ok">online</span>' : ""}<br>
+          ${w.accountType === "company" ? `<span class="muted">Contact: ${esc(w.contactName)} · CR ${esc(w.crNumber)}</span><br>` : ""}
           <span class="muted">${esc(w.phone)}</span><br>
           ★ ${w.rating || 0} (${w.ratingCount || 0}) · ${w.jobsDone || 0} jobs · owes ${sar(w.due)}
         </div>
       </div>
-      <div>${(w.skills || []).map((s) => `<span class="badge b-p">${CATS[s] || s}</span>`).join(" ")} ${iqamaBadge(w)}</div>
+      <div>${(w.skills || []).map((s) => `<span class="badge b-p">${CATS[s] || s}</span>`).join(" ")} ${w.accountType === "company" ? "" : iqamaBadge(w)}</div>
       ${w.status === "pending" ? `
         <div class="docs" data-docs="${w.id}"><span class="muted">Loading Iqama &amp; selfie…</span></div>
-        <label class="check"><input type="checkbox" class="huroob"> I checked: no huroob case</label>
+        <label class="check"><input type="checkbox" class="huroob"> ${w.accountType === "company" ? "I checked the CR (commercial registration)" : "I checked: no huroob case"}</label>
         <div class="row"><button class="approve" disabled>Approve</button><button class="danger reject">Block</button></div>`
       : w.status === "approved" ? `<div class="row"><button class="ghost docsBtn">View Iqama</button><button class="danger block">Block</button></div>`
       : `<div class="row"><button class="ghost docsBtn">View Iqama</button><button class="unblock">Unblock</button></div>`}
@@ -136,7 +137,7 @@ function renderWorkers() {
   list.filter((w) => w.status === "pending").forEach(async (w) => {
     const d = (await getDoc(doc(db, "workerDocs", w.id))).data() || {};
     const box = document.querySelector(`[data-docs="${w.id}"]`);
-    if (box) box.innerHTML = `<img src="${img(d.iqamaPhoto)}" alt="Iqama" title="Iqama ${esc(d.iqamaNo)}"><img src="${img(d.selfie)}" alt="Selfie">`
+    if (box) box.innerHTML = `<img src="${img(d.iqamaPhoto)}" alt="Iqama" title="${d.accountType === "company" ? "CR " + esc(d.crNumber) : "Iqama " + esc(d.iqamaNo)}"><img src="${img(d.selfie)}" alt="Selfie">`
       + `<div class="muted" style="align-self:end">Iqama no. <b>${esc(d.iqamaNo)}</b></div>`;
     box?.querySelectorAll("img").forEach((i) => (i.onclick = () => bigImage(i.src)));
   });
@@ -152,7 +153,7 @@ function renderWorkers() {
     el.querySelector(".unblock")?.addEventListener("click", () => setStatus(id, "approved"));
     el.querySelector(".docsBtn")?.addEventListener("click", async () => {
       const d = (await getDoc(doc(db, "workerDocs", id))).data() || {};
-      openDialog(`<h3>Iqama ${esc(d.iqamaNo)}</h3><img src="${img(d.iqamaPhoto)}"><img src="${img(d.selfie)}" style="margin-top:8px"><p><button>Close</button></p>`);
+      openDialog(`<h3>${d.accountType === "company" ? "CR " + esc(d.crNumber) : "Iqama " + esc(d.iqamaNo)}</h3><img src="${img(d.iqamaPhoto)}"><img src="${img(d.selfie)}" style="margin-top:8px"><p><button>Close</button></p>`);
     });
   });
 }
@@ -252,11 +253,26 @@ const STARTER = [
   ["furniture", "Curtain installation", "تركيب ستائر", "পর্দা লাগানো", 80, 30],
   ["furniture", "TV wall mount", "تعليق تلفزيون", "টিভি দেয়ালে লাগানো", 100, 30],
   ["painting", "Room painting (labour only)", "دهان غرفة (أجرة فقط)", "রুম রং (শুধু মজুরি)", 400, 30],
+  ["car", "Car battery change (at your place)", "تغيير بطارية السيارة (في موقعك)", "গাড়ির ব্যাটারি বদল (আপনার জায়গায়)", 80, 30],
+  ["car", "Car oil change (at your place)", "تغيير زيت السيارة (في موقعك)", "গাড়ির তেল বদল (আপনার জায়গায়)", 70, 30],
+  ["car", "Car check & small repair", "فحص السيارة وإصلاح بسيط", "গাড়ি চেক ও ছোট মেরামত", 120, 50],
+  ["car", "Car AC check & gas", "فحص مكيف السيارة وتعبئة غاز", "গাড়ির এসি চেক ও গ্যাস", 150, 30],
+  ["appliances", "Washing machine repair", "إصلاح غسالة", "ওয়াশিং মেশিন মেরামত", 150, 50],
+  ["appliances", "Fridge / freezer repair", "إصلاح ثلاجة / فريزر", "ফ্রিজ / ফ্রিজার মেরামত", 150, 50],
+  ["appliances", "Fridge gas refill", "تعبئة غاز ثلاجة", "ফ্রিজের গ্যাস ভরা", 200, 50],
+  ["appliances", "Oven / dishwasher repair", "إصلاح فرن / غسالة صحون", "ওভেন / ডিশওয়াশার মেরামত", 150, 50],
+  ["electronics", "TV repair", "إصلاح تلفزيون", "টিভি মেরামত", 150, 50],
+  ["electronics", "Satellite / receiver setup", "تركيب ستلايت / رسيفر", "স্যাটেলাইট / রিসিভার লাগানো", 100, 30],
+  ["electronics", "Wi-Fi / CCTV camera setup", "تركيب واي فاي / كاميرات مراقبة", "ওয়াই-ফাই / সিসিটিভি ক্যামেরা লাগানো", 150, 30],
 ];
 $("seedServices").onclick = async () => {
-  if (services.length && !confirm("Services already exist. Add the starter list anyway?")) return;
+  // Only adds starter services that are not in the list yet (matched by English name).
+  const have = new Set(services.map((s) => s.nameEn));
+  const missing = STARTER.map((r, i) => [r, i]).filter(([r]) => !have.has(r[1]));
+  if (!missing.length) return alert("All starter services are already in the list.");
+  if (!confirm(`Add ${missing.length} starter services?`)) return;
   const b = writeBatch(db);
-  STARTER.forEach(([category, nameEn, nameAr, nameBn, price, visitFee], i) =>
+  missing.forEach(([[category, nameEn, nameAr, nameBn, price, visitFee], i]) =>
     b.set(doc(collection(db, "services")), { category, nameEn, nameAr, nameBn, price, visitFee, active: true, sort: i + 1 }));
   await b.commit();
 };
