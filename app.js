@@ -26,6 +26,8 @@ const STATUS = {
 const ACTIVE = ["requested", "accepted", "on_the_way", "arrived", "working"];
 
 let workers = [], jobs = [], services = [], payments = [], settings = {};
+let customers = [], wallets = [], wreqs = [];
+const charts = {};
 let unsubs = [];
 
 /* ---------- login ---------- */
@@ -50,23 +52,36 @@ $("logout").onclick = () => signOut(auth);
 onAuthStateChanged(auth, async (user) => {
   unsubs.forEach((u) => u()); unsubs = [];
   document.querySelectorAll(".tab").forEach((t) => (t.hidden = true));
-  $("tabs").hidden = $("logout").hidden = true;
+  $("side").hidden = $("menuBtn").hidden = true;
   $("notAdmin").hidden = true;
   $("login").hidden = !!user;
+  $("pageTitle").textContent = "Admin"; $("pageSub").textContent = ""; $("who").textContent = "";
   if (!user) return;
   const a = await getDoc(doc(db, "admins", user.uid));
   if (!a.exists()) { $("myUid").textContent = user.uid; $("notAdmin").hidden = false; return; }
-  $("tabs").hidden = $("logout").hidden = false;
+  $("side").hidden = $("menuBtn").hidden = false;
+  $("who").textContent = user.phoneNumber || "";
   showTab("dash");
   listen();
 });
 
 /* ---------- tabs ---------- */
 document.querySelectorAll("#tabs button").forEach((b) => (b.onclick = () => showTab(b.dataset.tab)));
+const TITLES = {
+  dash: ["Dashboard", "Today at a glance"], map: ["Live map", "Workers and open requests"], jobs: ["Jobs", "All requests"],
+  workers: ["Workers", "Approve, block and review providers"], customers: ["Customers", "Everyone who uses NK Fazaa"],
+  wallets: ["Wallets", "Withdraw requests and balances"], money: ["Worker dues", "Cash the workers owe the company"],
+  prices: ["Prices", "Services and fixed prices"], requests: ["Requests", "Account delete requests"],
+  settings: ["Settings", "Commission, limits and support"],
+};
+$("menuBtn").onclick = () => $("side").classList.toggle("open");
 function showTab(name) {
   document.querySelectorAll("#tabs button").forEach((b) => b.classList.toggle("on", b.dataset.tab === name));
   document.querySelectorAll(".tab").forEach((t) => (t.hidden = t.id !== name));
+  $("pageTitle").textContent = TITLES[name]?.[0] || ""; $("pageSub").textContent = TITLES[name]?.[1] || "";
+  $("side").classList.remove("open");
   if (name === "map") setTimeout(drawMap, 50);
+  if (name === "dash") setTimeout(renderCharts, 30);
 }
 
 /* ---------- live data ---------- */
@@ -76,31 +91,95 @@ function listen() {
   unsubs.push(onSnapshot(collection(db, "services"), (s) => { services = s.docs.map((d) => ({ id: d.id, ...d.data() })); renderServices(); }));
   unsubs.push(onSnapshot(collection(db, "payments"), (s) => { payments = s.docs.map((d) => ({ id: d.id, ...d.data() })); renderMoney(); }));
   unsubs.push(onSnapshot(doc(db, "settings", "app"), (s) => { settings = s.data() || {}; renderSettings(); }));
+  unsubs.push(onSnapshot(collection(db, "customers"), (s) => { customers = s.docs.map((d) => ({ id: d.id, ...d.data() })); renderPeople(); }));
+  unsubs.push(onSnapshot(collection(db, "wallets"), (s) => { wallets = s.docs.map((d) => ({ id: d.id, ...d.data() })); renderWallets(); }));
+  unsubs.push(onSnapshot(collection(db, "walletRequests"), (s) => { wreqs = s.docs.map((d) => ({ id: d.id, ...d.data() })); renderWallets(); }));
 }
-function renderAll() { renderStats(); renderWorkers(); renderJobs(); renderMoney(); drawMap(); }
+function renderAll() { renderStats(); renderWorkers(); renderJobs(); renderMoney(); renderPeople(); drawMap(); }
+function renderPeople() { renderCustomers(); renderWallets(); renderRequests(); renderPills(); }
+function renderPills() {
+  const n = (v) => (v ? String(v) : "");
+  $("nPending").textContent = n(workers.filter((w) => w.status === "pending").length);
+  $("nWithdraw").textContent = n(wreqs.filter((r) => r.status === "pending").length);
+  $("nDelete").textContent = n([...customers, ...workers].filter((x) => x.deleteRequested).length);
+}
 
 /* ---------- dashboard ---------- */
+const isDone = (j) => j.status === "completed" || j.status === "visit_only";
+const dayKey = (d) => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
 function renderStats() {
   const today = new Date(); today.setHours(0, 0, 0, 0);
-  const done = jobs.filter((j) => j.status === "completed" || j.status === "visit_only");
-  const doneToday = done.filter((j) => j.finishedAt?.toDate && j.finishedAt.toDate() >= today);
-  const commission = done.reduce((a, j) => a + (j.commission || 0), 0);
-  const due = workers.reduce((a, w) => a + (w.due || 0), 0);
+  const month = new Date(today.getFullYear(), today.getMonth(), 1);
+  const done = jobs.filter(isDone);
+  const fin = (j) => j.finishedAt?.toDate?.();
+  const doneToday = done.filter((j) => fin(j) >= today);
+  const doneMonth = done.filter((j) => fin(j) >= month);
+  const sum = (l, f) => l.reduce((a, j) => a + (j[f] || 0), 0);
   const items = [
-    ["Online workers", workers.filter((w) => w.online && w.status === "approved").length, ""],
-    ["Waiting for approval", workers.filter((w) => w.status === "pending").length, "g"],
-    ["Active jobs", jobs.filter((j) => ACTIVE.includes(j.status)).length, "p"],
-    ["Jobs done today", doneToday.length, ""],
-    ["Jobs done (all time)", done.length, ""],
-    ["Commission earned", sar(commission), "p"],
-    ["Commission today", sar(doneToday.reduce((a, j) => a + (j.commission || 0), 0)), "p"],
-    ["Still owed by workers", sar(due), "g"],
+    ["engineering", "Online workers", workers.filter((w) => w.online && w.status === "approved").length, ""],
+    ["pending_actions", "Waiting for approval", workers.filter((w) => w.status === "pending").length, "g"],
+    ["bolt", "Active jobs", jobs.filter((j) => ACTIVE.includes(j.status)).length, "p"],
+    ["group", "Customers", customers.length, ""],
+    ["task_alt", "Jobs done today", doneToday.length, ""],
+    ["savings", "Income today", sar(sum(doneToday, "commission")), "p"],
+    ["calendar_month", "Income this month", sar(sum(doneMonth, "commission")), "p"],
+    ["point_of_sale", "Customer spending (month)", sar(sum(doneMonth, "paidByCustomer")), ""],
+    ["account_balance", "Owed by workers", sar(workers.reduce((a, w) => a + (w.due || 0), 0)), "g"],
+    ["star", "Average rating", (() => { const r = done.filter((j) => j.rating); return r.length ? (r.reduce((a, j) => a + j.rating, 0) / r.length).toFixed(1) : "–"; })(), "g"],
   ];
-  $("stats").innerHTML = items.map(([t, v, c]) => `<div class="stat ${c}"><span class="muted">${t}</span><b>${v}</b></div>`).join("");
+  $("stats").innerHTML = items.map(([ic, t, v, c]) =>
+    `<div class="stat ${c}"><i class="ms">${ic}</i><div><span>${t}</span><b>${v}</b></div></div>`).join("");
+
+  const top = workers.filter((w) => w.status === "approved")
+    .map((w) => ({ w, n: done.filter((j) => j.workerId === w.id).length, inc: sum(done.filter((j) => j.workerId === w.id), "commission") }))
+    .sort((a, b) => b.n - a.n).slice(0, 6);
+  $("topWorkers").innerHTML = `<tr><th>Worker</th><th class="num">Jobs</th><th class="num">Rating</th><th class="num">Income</th></tr>` +
+    (top.length ? top.map(({ w, n, inc }) => `<tr><td>${esc(w.name)}${w.accountType === "company" ? ' <span class="badge b-wait">Company</span>' : ""}</td>
+      <td class="num">${n}</td><td class="num">★ ${Number(w.rating || 0).toFixed(1)}</td><td class="num">${sar(inc)}</td></tr>`).join("")
+      : `<tr><td colspan="4" class="muted">No approved workers yet.</td></tr>`);
+
+  const latest = [...jobs].sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)).slice(0, 6);
+  $("latestJobs").innerHTML = `<tr><th>Time</th><th>Service</th><th>Customer</th><th>Worker</th><th>Status</th></tr>` +
+    (latest.length ? latest.map((j) => { const st = STATUS[j.status] || [j.status, ""];
+      return `<tr><td>${fmtDate(j.createdAt)}</td><td>${esc(j.serviceNameEn || j.serviceName)}</td><td>${esc(j.customerName)}</td>
+        <td>${esc(j.workerName || "–")}</td><td><span class="badge ${st[1]}">${st[0]}</span></td></tr>`; }).join("")
+      : `<tr><td colspan="5" class="muted">No jobs yet.</td></tr>`);
+  renderCharts();
+}
+
+function barChart(id, labels, data, color, money) {
+  if (!window.Chart || $("dash").hidden) return;
+  const cfg = {
+    type: "bar",
+    data: { labels, datasets: [{ data, backgroundColor: color, borderRadius: 4, borderSkipped: "start", maxBarThickness: 26 }] },
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      indexAxis: id === "chCats" ? "y" : "x",
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => (money ? sar(c.parsed[id === "chCats" ? "x" : "y"]) : c.formattedValue) } } },
+      scales: {
+        x: { grid: { display: id === "chCats", color: "#EEF1F2" }, ticks: { color: "#5A6B70", font: { size: 11 } }, beginAtZero: true },
+        y: { grid: { display: id !== "chCats", color: "#EEF1F2" }, ticks: { color: "#5A6B70", font: { size: 11 }, precision: 0 }, beginAtZero: true },
+      },
+    },
+  };
+  if (charts[id]) { charts[id].data = cfg.data; charts[id].update(); } else charts[id] = new Chart($(id), cfg);
+}
+function renderCharts() {
+  const days = [...Array(14)].map((_, i) => { const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - 13 + i); return d; });
+  const labels = days.map((d) => d.toLocaleDateString("en-GB", { day: "numeric", month: "short" }));
+  const count = Object.fromEntries(days.map((d) => [dayKey(d), 0])), money = { ...count };
+  jobs.filter(isDone).forEach((j) => { const d = j.finishedAt?.toDate?.(); if (!d) return; const k = dayKey(d);
+    if (k in count) { count[k]++; money[k] += j.commission || 0; } });
+  barChart("chJobs", labels, days.map((d) => count[dayKey(d)]), "#0A8A80", false);
+  barChart("chMoney", labels, days.map((d) => Math.round(money[dayKey(d)])), "#6A1B78", true);
+  const byCat = {};
+  jobs.filter((j) => j.status !== "cancelled").forEach((j) => (byCat[j.category] = (byCat[j.category] || 0) + 1));
+  const cats = Object.entries(byCat).sort((a, b) => b[1] - a[1]);
+  barChart("chCats", cats.map(([c]) => CATS[c] || c), cats.map(([, n]) => n), "#0A8A80", false);
 }
 
 /* ---------- workers ---------- */
-$("wFilter").onchange = $("wSearch").oninput = renderWorkers;
+$("wFilter").onchange = $("wType").onchange = $("wSearch").oninput = renderWorkers;
 function iqamaBadge(w) {
   const t = w.iqamaExpiry?.toDate?.();
   if (!t) return "";
@@ -112,6 +191,7 @@ function renderWorkers() {
   const f = $("wFilter").value, q = $("wSearch").value.toLowerCase();
   const list = workers
     .filter((w) => !f || w.status === f)
+    .filter((w) => !$("wType").value || (w.accountType || "individual") === $("wType").value)
     .filter((w) => !q || (w.name || "").toLowerCase().includes(q) || (w.phone || "").includes(q))
     .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
   $("workerList").innerHTML = list.length ? list.map((w) => `
@@ -163,11 +243,13 @@ function setStatus(id, status) {
 }
 
 /* ---------- jobs ---------- */
-$("jFilter").onchange = renderJobs;
+$("jFilter").onchange = $("jSearch").oninput = renderJobs;
 function renderJobs() {
   const f = $("jFilter").value;
   const list = jobs
     .filter((j) => !f || (f === "active" ? ACTIVE.includes(j.status) : j.status === f))
+    .filter((j) => { const q = $("jSearch").value.toLowerCase(); return !q || [j.customerName, j.customerPhone, j.workerName, j.serviceNameEn, j.serviceName]
+      .some((x) => (x || "").toLowerCase().includes(q)); })
     .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))
     .slice(0, 300);
   const approved = workers.filter((w) => w.status === "approved");
@@ -302,12 +384,94 @@ function renderMoney() {
       : `<tr><td colspan="3" class="muted">No payments yet.</td></tr>`);
 }
 
+/* ---------- customers ---------- */
+const balanceOf = (id) => wallets.find((w) => w.id === id)?.balance || 0;
+$("cSearch").oninput = renderCustomers;
+function renderCustomers() {
+  const q = $("cSearch").value.toLowerCase();
+  const list = customers.filter((c) => !q || (c.name || "").toLowerCase().includes(q) || (c.phone || "").includes(q))
+    .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+  $("customerTable").innerHTML = `<tr><th>Name</th><th>Phone</th><th>Joined</th><th class="num">Requests</th><th class="num">Spent</th><th class="num">Wallet</th><th></th></tr>` +
+    (list.length ? list.map((c) => { const mine = jobs.filter((j) => j.customerId === c.id);
+      return `<tr><td><b>${esc(c.name)}</b></td><td>${esc(c.phone)}</td><td>${fmtDate(c.createdAt)}</td>
+        <td class="num">${mine.length}</td><td class="num">${sar(mine.filter(isDone).reduce((a, j) => a + (j.paidByCustomer || 0), 0))}</td>
+        <td class="num">${sar(balanceOf(c.id))}</td>
+        <td>${c.deleteRequested ? '<span class="badge b-bad">Delete requested</span>' : ""}</td></tr>`; }).join("")
+      : `<tr><td colspan="7" class="muted">No customers yet.</td></tr>`);
+}
+
+/* ---------- wallets ---------- */
+const personName = (uid) => customers.find((c) => c.id === uid)?.name || workers.find((w) => w.id === uid)?.name || uid;
+$("rFilter").onchange = renderWallets;
+function renderWallets() {
+  const f = $("rFilter").value;
+  const list = wreqs.filter((r) => !f || r.status === f).sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+  const RS = { pending: ["Waiting", "b-wait"], paid: ["Paid", "b-ok"], rejected: ["Rejected", "b-bad"] };
+  $("withdrawTable").innerHTML = `<tr><th>Date</th><th>Who</th><th class="num">Amount</th><th class="num">Balance</th><th>Bank</th><th>Status</th><th></th></tr>` +
+    (list.length ? list.map((r) => { const st = RS[r.status] || [r.status, ""];
+      return `<tr><td>${fmtDate(r.createdAt)}</td><td><b>${esc(personName(r.uid))}</b><br><span class="muted">${esc(r.role)}</span></td>
+        <td class="num"><b>${sar(r.amount)}</b></td><td class="num">${sar(balanceOf(r.uid))}</td>
+        <td>${esc(r.accountName)}<br><span class="muted">${esc(r.bankName)} · ${esc(r.iban)}</span></td>
+        <td><span class="badge ${st[1]}">${st[0]}</span></td>
+        <td>${r.status === "pending" ? `<div class="row"><button class="small" data-wpaid="${r.id}">Mark paid</button><button class="small danger" data-wrej="${r.id}">Reject</button></div>` : ""}</td></tr>`; }).join("")
+      : `<tr><td colspan="7" class="muted">No requests.</td></tr>`);
+  document.querySelectorAll("[data-wpaid]").forEach((b) => (b.onclick = async () => {
+    const r = wreqs.find((x) => x.id === b.dataset.wpaid);
+    if (balanceOf(r.uid) < r.amount) return alert("Balance is lower than the request.");
+    if (!confirm(`Did you transfer ${sar(r.amount)} to ${r.accountName} (${r.iban})?`)) return;
+    const batch = writeBatch(db);
+    batch.update(doc(db, "walletRequests", r.id), { status: "paid", paidAt: serverTimestamp() });
+    batch.set(doc(db, "wallets", r.uid), { balance: increment(-r.amount), updatedAt: serverTimestamp() }, { merge: true });
+    await batch.commit();
+  }));
+  document.querySelectorAll("[data-wrej]").forEach((b) => (b.onclick = () => {
+    if (confirm("Reject this request?")) updateDoc(doc(db, "walletRequests", b.dataset.wrej), { status: "rejected", rejectedAt: serverTimestamp() });
+  }));
+  const people = [...customers.map((c) => [c.id, `${c.name || ""} · customer · ${c.phone || ""}`]),
+    ...workers.map((w) => [w.id, `${w.name || ""} · worker · ${w.phone || ""}`])];
+  const keep = $("balUser").value;
+  $("balUser").innerHTML = `<option value="">Choose a customer or worker…</option>` + people.map(([id, t]) => `<option value="${id}">${esc(t)}</option>`).join("");
+  $("balUser").value = keep;
+  const withBal = wallets.filter((w) => w.balance).sort((a, b) => b.balance - a.balance);
+  $("balanceTable").innerHTML = `<tr><th>Who</th><th class="num">Balance</th><th>Updated</th></tr>` +
+    (withBal.length ? withBal.map((w) => `<tr><td>${esc(personName(w.id))}</td><td class="num"><b>${sar(w.balance)}</b></td><td>${fmtDate(w.updatedAt)}</td></tr>`).join("")
+      : `<tr><td colspan="3" class="muted">No wallet balances yet.</td></tr>`);
+}
+$("balSave").onclick = async () => {
+  const uid = $("balUser").value, amt = Number($("balAmount").value);
+  if (!uid || !amt) return;
+  if (balanceOf(uid) + amt < 0) return alert("Balance cannot go below 0.");
+  if (!confirm(`${amt > 0 ? "Add" : "Remove"} ${sar(Math.abs(amt))} ${amt > 0 ? "to" : "from"} ${personName(uid)}'s wallet?`)) return;
+  await setDoc(doc(db, "wallets", uid), { balance: increment(amt), updatedAt: serverTimestamp() }, { merge: true });
+  $("balAmount").value = "";
+};
+
+/* ---------- delete requests ---------- */
+function renderRequests() {
+  const list = [...customers.filter((c) => c.deleteRequested).map((c) => ({ ...c, kind: "customer" })),
+    ...workers.filter((w) => w.deleteRequested).map((w) => ({ ...w, kind: "worker" }))]
+    .sort((a, b) => (a.deleteRequestedAt?.seconds || 0) - (b.deleteRequestedAt?.seconds || 0));
+  $("deleteTable").innerHTML = `<tr><th>Asked on</th><th>Who</th><th>Phone</th><th>Type</th><th></th></tr>` +
+    (list.length ? list.map((x) => `<tr><td>${fmtDate(x.deleteRequestedAt)}</td><td><b>${esc(x.name)}</b></td><td>${esc(x.phone)}</td>
+      <td>${x.kind}</td><td><div class="row"><button class="small danger" data-del-${x.kind}="${x.id}">Remove data</button>
+      <button class="small ghost" data-keep-${x.kind}="${x.id}">Cancel request</button></div></td></tr>`).join("")
+      : `<tr><td colspan="5" class="muted">No delete requests.</td></tr>`);
+  const wire = (sel, fn) => document.querySelectorAll(sel).forEach((b) => (b.onclick = () => fn(Object.values(b.dataset)[0])));
+  wire("[data-del-customer]", async (id) => { if (confirm("Delete this customer's profile and wallet?")) {
+    const b = writeBatch(db); b.delete(doc(db, "customers", id)); b.delete(doc(db, "wallets", id)); await b.commit(); } });
+  wire("[data-del-worker]", async (id) => { if (confirm("Delete this worker's profile, documents and wallet?")) {
+    const b = writeBatch(db); b.delete(doc(db, "workers", id)); b.delete(doc(db, "workerDocs", id)); b.delete(doc(db, "wallets", id)); await b.commit(); } });
+  wire("[data-keep-customer]", (id) => updateDoc(doc(db, "customers", id), { deleteRequested: false }));
+  wire("[data-keep-worker]", (id) => updateDoc(doc(db, "workers", id), { deleteRequested: false }));
+}
+
 /* ---------- settings ---------- */
 function renderSettings() {
   $("sVisit").value = Math.round((settings.visitCommission ?? 0.5) * 100);
   $("sJob").value = (settings.jobCommission ?? 0.05) * 100;
   $("sDue").value = settings.dueLimit ?? 200;
   $("sRadius").value = settings.radiusKm ?? 15;
+  $("sSupport").value = settings.supportPhone ?? "";
 }
 $("saveSettings").onclick = async () => {
   await setDoc(doc(db, "settings", "app"), {
@@ -315,6 +479,7 @@ $("saveSettings").onclick = async () => {
     jobCommission: Number($("sJob").value) / 100,
     dueLimit: Number($("sDue").value),
     radiusKm: Number($("sRadius").value),
+    supportPhone: $("sSupport").value.replace(/[^0-9+]/g, ""),
   }, { merge: true });
   $("settingsMsg").textContent = "Saved.";
 };
