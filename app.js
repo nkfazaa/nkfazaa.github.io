@@ -206,12 +206,14 @@ function renderJobs() {
 /* ---------- prices ---------- */
 function renderServices() {
   const list = [...services].sort((a, b) => (a.sort || 0) - (b.sort || 0));
-  $("serviceTable").innerHTML = `<tr><th>Category</th><th>English</th><th>Arabic</th><th>Bangla</th><th>Price</th><th>Visit fee</th><th>Shown</th><th></th></tr>` +
+  $("serviceTable").innerHTML = `<tr><th>Category</th><th>English</th><th>Arabic</th><th>Bangla</th><th>Urdu</th><th>Hindi</th><th>Price</th><th>Visit fee</th><th>Shown</th><th></th></tr>` +
     list.map((s) => `<tr data-id="${s.id}">
       <td><select data-f="category">${Object.entries(CATS).map(([k, v]) => `<option value="${k}" ${s.category === k ? "selected" : ""}>${v}</option>`).join("")}</select></td>
       <td><input data-f="nameEn" value="${esc(s.nameEn)}"></td>
       <td><input data-f="nameAr" value="${esc(s.nameAr)}" dir="rtl"></td>
       <td><input data-f="nameBn" value="${esc(s.nameBn)}"></td>
+      <td><input data-f="nameUr" value="${esc(s.nameUr)}" dir="rtl"></td>
+      <td><input data-f="nameHi" value="${esc(s.nameHi)}"></td>
       <td><input data-f="price" type="number" value="${s.price ?? 0}" style="width:90px"></td>
       <td><input data-f="visitFee" type="number" value="${s.visitFee ?? 0}" style="width:90px"></td>
       <td><input data-f="active" type="checkbox" ${s.active !== false ? "checked" : ""} style="width:20px"></td>
