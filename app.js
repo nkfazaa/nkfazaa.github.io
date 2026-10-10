@@ -91,9 +91,9 @@ function listen() {
   unsubs.push(onSnapshot(collection(db, "services"), (s) => { services = s.docs.map((d) => ({ id: d.id, ...d.data() })); renderServices(); }));
   unsubs.push(onSnapshot(collection(db, "payments"), (s) => { payments = s.docs.map((d) => ({ id: d.id, ...d.data() })); renderMoney(); }));
   unsubs.push(onSnapshot(doc(db, "settings", "app"), (s) => { settings = s.data() || {}; renderSettings(); }));
-  unsubs.push(onSnapshot(collection(db, "customers"), (s) => { customers = s.docs.map((d) => ({ id: d.id, ...d.data() })); renderPeople(); }));
-  unsubs.push(onSnapshot(collection(db, "wallets"), (s) => { wallets = s.docs.map((d) => ({ id: d.id, ...d.data() })); renderWallets(); }));
-  unsubs.push(onSnapshot(collection(db, "walletRequests"), (s) => { wreqs = s.docs.map((d) => ({ id: d.id, ...d.data() })); renderWallets(); }));
+  unsubs.push(onSnapshot(collection(db, "customers"), (s) => { customers = s.docs.map((d) => ({ id: d.id, ...d.data() })); renderPeople(); renderStats(); }));
+  unsubs.push(onSnapshot(collection(db, "wallets"), (s) => { wallets = s.docs.map((d) => ({ id: d.id, ...d.data() })); renderPeople(); }));
+  unsubs.push(onSnapshot(collection(db, "walletRequests"), (s) => { wreqs = s.docs.map((d) => ({ id: d.id, ...d.data() })); renderPeople(); }));
 }
 function renderAll() { renderStats(); renderWorkers(); renderJobs(); renderMoney(); renderPeople(); drawMap(); }
 function renderPeople() { renderCustomers(); renderWallets(); renderRequests(); renderPills(); }
