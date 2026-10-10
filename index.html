@@ -3,182 +3,166 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>NK Fazaa Admin</title>
-<link rel="icon" href="icon.png">
+<title>NK Fazaa · Home services at your door in Jeddah</title>
+<meta name="description" content="Request a trusted AC technician, plumber, electrician, car mechanic or appliance repair at your door in Jeddah. Fixed prices, pay in cash.">
+<link rel="icon" href="img/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Readex+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,500,0,0" rel="stylesheet">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-<link rel="stylesheet" href="style.css?v=1791636509">
+<link rel="stylesheet" href="site.css?v=2">
+<script src="site.js?v=1"></script>
 </head>
 <body>
-<div class="shell" id="shell">
-  <aside class="side" id="side" hidden>
-    <div class="side-brand">
-      <img src="icon.png" alt="" class="logo">
-      <div><div class="brand">nk<span>fazaa</span></div><small>Admin dashboard</small></div>
-    </div>
-    <nav id="tabs">
-      <button data-tab="dash" class="on"><span class="ic ms">space_dashboard</span>Dashboard</button>
-      <button data-tab="map"><span class="ic ms">map</span>Live map</button>
-      <button data-tab="jobs"><span class="ic ms">receipt_long</span>Jobs <em class="pill red" id="nLate"></em></button>
-      <button data-tab="workers"><span class="ic ms">engineering</span>Workers <em class="pill" id="nPending"></em></button>
-      <button data-tab="customers"><span class="ic ms">group</span>Customers</button>
-      <button data-tab="wallets"><span class="ic ms">account_balance_wallet</span>Wallets <em class="pill" id="nWithdraw"></em></button>
-      <button data-tab="money"><span class="ic ms">payments</span>Worker dues</button>
-      <button data-tab="prices"><span class="ic ms">sell</span>Prices</button>
-      <button data-tab="requests"><span class="ic ms">inbox</span>Requests <em class="pill" id="nDelete"></em></button>
-      <button data-tab="settings"><span class="ic ms">settings</span>Settings</button>
+<header class="bar">
+  <div class="wrap">
+    <a class="home" href="./"><img src="img/icon-192.png" alt=""><span class="en">NK Fazaa</span><span class="ar">إن كي فزعة</span></a>
+    <nav class="links">
+      <a href="#services"><span class="en">Services</span><span class="ar">الخدمات</span></a>
+      <a href="#how"><span class="en">How it works</span><span class="ar">كيف تعمل</span></a>
+      <a href="#workers"><span class="en">Work with us</span><span class="ar">اعمل معنا</span></a>
+      <a href="#download"><span class="en">Download</span><span class="ar">التحميل</span></a>
     </nav>
-    <button id="logout" class="ghost side-logout">Log out</button>
-  </aside>
-
-  <div class="content">
-    <header class="top" id="top">
-      <button id="menuBtn" class="menu" hidden aria-label="Menu">☰</button>
-      <div class="top-title"><h1 id="pageTitle">Admin</h1><span class="muted" id="pageSub"></span></div>
-      <span class="muted" id="who"></span>
-    </header>
-
-    <main>
-      <section id="login" class="card narrow login">
-        <img src="icon.png" alt="" class="login-logo">
-        <h2>NK Fazaa Admin</h2>
-        <p class="muted">Log in with the admin mobile number.</p>
-        <label>Mobile number <input id="phone" placeholder="+9665XXXXXXXX" inputmode="tel"></label>
-        <button id="sendCode">Send code</button>
-        <div id="codeBox" hidden>
-          <label>Code <input id="code" inputmode="numeric" maxlength="6"></label>
-          <button id="verify">Verify</button>
-        </div>
-        <div id="recaptcha"></div>
-        <p id="loginMsg" class="muted"></p>
-      </section>
-
-      <section id="notAdmin" class="card narrow" hidden>
-        <h2>Not an admin yet</h2>
-        <p>This account is not marked as admin. In the Firebase console → Firestore, create a document
-          <code>admins/<b id="myUid"></b></code> (any field, e.g. <code>name: "Owner"</code>), then reload.</p>
-      </section>
-
-      <section id="dash" class="tab" hidden>
-        <div id="alerts"></div>
-        <div class="stats" id="stats"></div>
-        <div class="grid2">
-          <div class="card"><h3>Jobs finished · last 14 days</h3><div class="chartbox"><canvas id="chJobs"></canvas></div></div>
-          <div class="card"><h3>Company income (SAR) · last 14 days</h3><div class="chartbox"><canvas id="chMoney"></canvas></div></div>
-        </div>
-        <div class="grid2">
-          <div class="card"><h3>Jobs by category</h3><div class="chartbox"><canvas id="chCats"></canvas></div></div>
-          <div class="card"><h3>Top workers</h3><div class="tablewrap flat"><table id="topWorkers"></table></div></div>
-        </div>
-        <div class="card"><h3>Latest jobs</h3><div class="tablewrap flat"><table id="latestJobs"></table></div></div>
-      </section>
-
-      <section id="map" class="tab" hidden>
-        <p class="muted"><span class="dot teal"></span> online workers · <span class="dot purple"></span> open requests · updates live</p>
-        <div id="leaflet"></div>
-      </section>
-
-      <section id="workers" class="tab" hidden>
-        <div class="toolbar">
-          <select id="wFilter">
-            <option value="pending">Pending approval</option>
-            <option value="approved">Approved</option>
-            <option value="blocked">Blocked</option>
-            <option value="">All</option>
-          </select>
-          <select id="wType">
-            <option value="">Individuals &amp; companies</option>
-            <option value="individual">Individuals</option>
-            <option value="company">Companies</option>
-          </select>
-          <input id="wSearch" placeholder="Search name or phone">
-        </div>
-        <div id="workerList" class="list"></div>
-      </section>
-
-      <section id="customers" class="tab" hidden>
-        <div class="toolbar"><input id="cSearch" placeholder="Search name or phone"></div>
-        <div class="tablewrap"><table id="customerTable"></table></div>
-      </section>
-
-      <section id="wallets" class="tab" hidden>
-        <h3>Withdraw requests</h3>
-        <div class="toolbar">
-          <select id="rFilter">
-            <option value="pending">Waiting</option>
-            <option value="paid">Paid</option>
-            <option value="rejected">Rejected</option>
-            <option value="">All</option>
-          </select>
-        </div>
-        <div class="tablewrap"><table id="withdrawTable"></table></div>
-        <h3>Add or remove wallet balance</h3>
-        <div class="card toolbar">
-          <select id="balUser"></select>
-          <input id="balAmount" type="number" step="1" placeholder="Amount (use - to remove)">
-          <button id="balSave">Save</button>
-        </div>
-        <div class="tablewrap"><table id="balanceTable"></table></div>
-      </section>
-
-      <section id="jobs" class="tab" hidden>
-        <div class="toolbar">
-          <select id="jFilter">
-            <option value="active">Active</option>
-            <option value="requested">Waiting for worker</option>
-            <option value="completed">Completed</option>
-            <option value="visit_only">Visit only</option>
-            <option value="cancelled">Cancelled</option>
-            <option value="">All</option>
-          </select>
-          <input id="jSearch" placeholder="Search customer, worker or service">
-        </div>
-        <div class="tablewrap"><table id="jobTable"></table></div>
-      </section>
-
-      <section id="prices" class="tab" hidden>
-        <div class="toolbar">
-          <button id="addService">+ Add service</button>
-          <button id="seedServices" class="ghost">Load starter Jeddah price list</button>
-        </div>
-        <div class="tablewrap"><table id="serviceTable"></table></div>
-      </section>
-
-      <section id="money" class="tab" hidden>
-        <h3>Workers who owe the company</h3>
-        <div class="tablewrap"><table id="dueTable"></table></div>
-        <h3>Recent payments</h3>
-        <div class="tablewrap"><table id="payTable"></table></div>
-      </section>
-
-      <section id="requests" class="tab" hidden>
-        <h3>Account delete requests</h3>
-        <p class="muted">Removing the data deletes the profile from the database. Also delete the phone number under Firebase → Authentication → Users.</p>
-        <div class="tablewrap"><table id="deleteTable"></table></div>
-      </section>
-
-      <section id="settings" class="tab card narrow" hidden>
-        <h2>Commission &amp; rules</h2>
-        <label>App share of visit fee (%) <input id="sVisit" type="number" step="1" min="0" max="100"></label>
-        <label>App share of job price (%) <input id="sJob" type="number" step="0.5" min="0" max="100"></label>
-        <label>Due limit (SAR) – worker gets no new jobs above this <input id="sDue" type="number" min="0"></label>
-        <label>Worker sees requests within (km) <input id="sRadius" type="number" min="1"></label>
-        <h2>Support</h2>
-        <label>WhatsApp support number (shown in both apps) <input id="sSupport" placeholder="+9665XXXXXXXX" inputmode="tel"></label>
-        <button id="saveSettings">Save</button>
-        <p id="settingsMsg" class="muted"></p>
-      </section>
-    </main>
+    <button class="lang" id="lang" type="button">العربية</button>
   </div>
-</div>
+</header>
 
-<dialog id="dlg"><form method="dialog" id="dlgBody"></form></dialog>
+<main>
+  <div class="hero">
+    <div class="wrap">
+      <div>
+        <h1><span class="en">A skilled hand at your door, fast.</span><span class="ar">فزعة لبيتك، بأسرع وقت.</span></h1>
+        <p class="lead">
+          <span class="en">AC, plumbing, electrical, cleaning, car and appliance repair in Jeddah. Send a request, the nearest worker accepts, and you follow them on the map until they knock.</span>
+          <span class="ar">تكييف، سباكة، كهرباء، تنظيف، صيانة سيارات وأجهزة منزلية في جدة. أرسل طلبك، يقبله أقرب فني، وتتابعه على الخريطة حتى يطرق بابك.</span>
+        </p>
+        <div class="cta">
+          <a class="btn primary" href="#download"><i class="ms">download</i><span class="en">Get the app</span><span class="ar">حمّل التطبيق</span></a>
+          <a class="btn second" href="#workers"><i class="ms">engineering</i><span class="en">Become a worker</span><span class="ar">سجّل كفني</span></a>
+        </div>
+      </div>
+      <div class="door">
+        <img src="img/mark.png" alt="NK Fazaa: a worker with a toolbox walking into a home">
+        <div class="ticket" aria-hidden="true">
+          <div class="dot"><i class="ms">directions_car</i></div>
+          <div>
+            <b><span class="en">Your worker is 8 min away</span><span class="ar">الفني يصل خلال 8 دقائق</span></b>
+            <small><span class="en">AC cleaning · accepted</span><span class="ar">غسيل مكيف · تم القبول</span></small>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-<script src="config.js"></script>
-<script type="module" src="app.js?v=1791636509"></script>
+  <section id="services">
+    <div class="wrap">
+      <h2><span class="en">What we fix</span><span class="ar">ماذا نصلح</span></h2>
+      <p class="soft"><span class="en">Every service has a fixed price in the app before you request. No bargaining at the door.</span>
+        <span class="ar">لكل خدمة سعر ثابت يظهر في التطبيق قبل الطلب. بدون مفاوضة عند الباب.</span></p>
+      <div class="trades">
+        <div class="trade"><i class="ms">ac_unit</i><span><span class="en">AC cleaning &amp; repair</span><span class="ar">غسيل وصيانة المكيفات</span></span></div>
+        <div class="trade"><i class="ms">plumbing</i><span><span class="en">Plumbing &amp; leaks</span><span class="ar">سباكة وتسريبات</span></span></div>
+        <div class="trade"><i class="ms">electrical_services</i><span><span class="en">Electrical</span><span class="ar">كهرباء</span></span></div>
+        <div class="trade"><i class="ms">cleaning_services</i><span><span class="en">Home cleaning</span><span class="ar">تنظيف المنازل</span></span></div>
+        <div class="trade"><i class="ms">car_repair</i><span><span class="en">Car mechanic at your place</span><span class="ar">ميكانيكي سيارات في موقعك</span></span></div>
+        <div class="trade"><i class="ms">local_laundry_service</i><span><span class="en">Washing machine &amp; fridge</span><span class="ar">غسالات وثلاجات</span></span></div>
+        <div class="trade"><i class="ms">tv</i><span><span class="en">TV, satellite &amp; CCTV</span><span class="ar">تلفزيون وستلايت وكاميرات</span></span></div>
+        <div class="trade"><i class="ms">chair</i><span><span class="en">Furniture &amp; curtains</span><span class="ar">أثاث وستائر</span></span></div>
+        <div class="trade"><i class="ms">format_paint</i><span><span class="en">Painting</span><span class="ar">دهانات</span></span></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="how">
+    <div class="wrap">
+      <div class="steps">
+        <h2><span class="en">From request to your door</span><span class="ar">من الطلب إلى بابك</span></h2>
+        <p class="soft"><span class="en">Built like a ride app, for home services.</span><span class="ar">مثل تطبيقات التوصيل، لكن للخدمات المنزلية.</span></p>
+        <ol>
+          <li><h3><span class="en">Choose the service</span><span class="ar">اختر الخدمة</span></h3>
+            <p><span class="en">See the price and the visit fee, add a photo or a note if you like.</span><span class="ar">شاهد السعر ورسوم الزيارة، وأضف صورة أو ملاحظة إن أردت.</span></p></li>
+          <li><h3><span class="en">Share your location</span><span class="ar">حدد موقعك</span></h3>
+            <p><span class="en">Use GPS, pick on the map, or paste a Google Maps or WhatsApp link.</span><span class="ar">بالـ GPS أو من الخريطة أو بلصق رابط قوقل ماب أو واتساب.</span></p></li>
+          <li><h3><span class="en">The nearest worker accepts</span><span class="ar">يقبل أقرب فني</span></h3>
+            <p><span class="en">Workers near you get the request at once. You see who is coming and when.</span><span class="ar">يصل طلبك فوراً للفنيين القريبين. ترى من القادم ومتى يصل.</span></p></li>
+          <li><h3><span class="en">Pay after the job</span><span class="ar">ادفع بعد العمل</span></h3>
+            <p><span class="en">Pay the worker in cash, then rate the job. If you decide not to go ahead after the visit, you pay only the visit fee.</span><span class="ar">ادفع للفني نقداً ثم قيّم العمل. إذا قررت عدم التنفيذ بعد الزيارة تدفع رسوم الزيارة فقط.</span></p></li>
+        </ol>
+      </div>
+    </div>
+  </section>
+
+  <section id="workers">
+    <div class="wrap">
+      <h2><span class="en">Work with NK Fazaa</span><span class="ar">اعمل مع إن كي فزعة</span></h2>
+      <p class="soft"><span class="en">Individual technicians and companies can sign up in the NK Fazaa Pro app. Go online when you want work; jobs near you come straight to your phone.</span>
+        <span class="ar">يمكن للفنيين الأفراد والشركات التسجيل في تطبيق إن كي فزعة برو. اتصل عندما تريد العمل، وتصلك الطلبات القريبة مباشرة.</span></p>
+      <div class="join">
+        <div class="need">
+          <h3><span class="en">Sign up as an individual</span><span class="ar">التسجيل كفرد</span></h3>
+          <ul>
+            <li><span class="en">Full name and Saudi mobile number</span><span class="ar">الاسم الكامل ورقم جوال سعودي</span></li>
+            <li><span class="en">Iqama number, expiry date and a photo of the Iqama</span><span class="ar">رقم الإقامة وتاريخ الانتهاء وصورة الإقامة</span></li>
+            <li><span class="en">A clear selfie</span><span class="ar">صورة شخصية واضحة</span></li>
+            <li><span class="en">The kinds of work you do</span><span class="ar">نوع الأعمال التي تجيدها</span></li>
+          </ul>
+        </div>
+        <div class="need co">
+          <h3><span class="en">Sign up as a company or shop</span><span class="ar">التسجيل كشركة أو محل</span></h3>
+          <ul>
+            <li><span class="en">Company or shop name and a contact person</span><span class="ar">اسم الشركة أو المحل واسم المسؤول</span></li>
+            <li><span class="en">Commercial registration (CR) number and a photo of the CR</span><span class="ar">رقم السجل التجاري وصورته</span></li>
+            <li><span class="en">A photo of the shop or logo</span><span class="ar">صورة المحل أو الشعار</span></li>
+            <li><span class="en">You can send any of your own workers to the job</span><span class="ar">يمكنك إرسال أي فني من فريقك</span></li>
+          </ul>
+        </div>
+      </div>
+      <div class="money">
+        <div><b>50%</b><span class="en">of the visit fee is the company share</span><span class="ar">من رسوم الزيارة حصة الشركة</span></div>
+        <div><b>5%</b><span class="en">of the job price is the company share</span><span class="ar">من سعر العمل حصة الشركة</span></div>
+        <div><b><span class="en">The rest</span><span class="ar">الباقي</span></b><span class="en">is yours, collected in cash from the customer</span><span class="ar">لك، تستلمه نقداً من العميل</span></div>
+      </div>
+      <h3 style="margin-top:32px"><span class="en">Rules for workers</span><span class="ar">قواعد الفنيين</span></h3>
+      <ul class="rules">
+        <li><span class="en">The office checks every new account before it can take jobs.</span><span class="ar">يراجع المكتب كل حساب جديد قبل استقبال الطلبات.</span></li>
+        <li><span class="en">Workers with an absconding (huroob) report cannot register.</span><span class="ar">لا يمكن تسجيل من عليه بلاغ تغيب (هروب).</span></li>
+        <li><span class="en">Charge only the price shown in the app.</span><span class="ar">لا تأخذ إلا السعر الظاهر في التطبيق.</span></li>
+        <li><span class="en">Pay the company share to the office; above the due limit you get no new jobs until you pay.</span><span class="ar">ادفع حصة الشركة للمكتب؛ عند تجاوز الحد لا تصلك طلبات حتى السداد.</span></li>
+        <li><span class="en">Be on time and polite. Customers rate every job.</span><span class="ar">كن في الموعد ومهذباً. العملاء يقيّمون كل عمل.</span></li>
+        <li><span class="en">Workers are independent; NK Fazaa connects you with customers.</span><span class="ar">الفنيون مستقلون؛ إن كي فزعة تربطك بالعملاء.</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="download">
+    <div class="wrap">
+      <h2><span class="en">Download the apps</span><span class="ar">حمّل التطبيقات</span></h2>
+      <div class="get">
+        <a class="app" href="download/NKFazaa.apk" download>
+          <img src="img/icon-192.png" alt="">
+          <div><b><span class="en">NK Fazaa</span><span class="ar">إن كي فزعة</span></b>
+            <span class="en">For customers: request a service</span><span class="ar">للعملاء: اطلب خدمة</span></div>
+        </a>
+        <a class="app pro" href="download/NKFazaaPro.apk" download>
+          <img src="img/icon-192.png" alt="">
+          <div><b><span class="en">NK Fazaa Pro</span><span class="ar">إن كي فزعة برو</span></b>
+            <span class="en">For workers and companies: take jobs</span><span class="ar">للفنيين والشركات: استقبل الطلبات</span></div>
+        </a>
+      </div>
+      <p class="note"><span class="en">Android only for now (about 22 MB). Coming soon to Google Play. If your phone asks, allow installing apps from your browser.</span>
+        <span class="ar">لأجهزة أندرويد حالياً (حوالي 22 ميجا). قريباً على Google Play. إذا طلب الجوال، اسمح بتثبيت التطبيقات من المتصفح.</span></p>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>© 2026 <span class="en">NK Fazaa</span><span class="ar">إن كي فزعة</span> · Jeddah</span>
+    <nav>
+      <a href="privacy.html"><span class="en">Privacy policy</span><span class="ar">سياسة الخصوصية</span></a>
+      <a href="terms.html"><span class="en">Terms of use</span><span class="ar">شروط الاستخدام</span></a>
+      <a href="delete-account.html"><span class="en">Delete your account</span><span class="ar">حذف الحساب</span></a>
+    </nav>
+  </div>
+</footer>
 </body>
 </html>
